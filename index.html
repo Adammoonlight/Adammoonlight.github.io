@@ -1,21 +1,207 @@
-<script src="https://unpkg.com/vue@next"></script>
+<head>
+  <link rel="stylesheet" href="http://cdn.jsdelivr.net/npm/element-plus/dist/index.css"/>
+  <script src="http://cdn.jsdelivr.net/npm/vue@next"></script>
+  <script src="http://cdn.jsdelivr.net/npm/element-plus"></script>
+</head>
 
-<html lang="">
 <div id="hello-vue" class="demo">
-	  {{ message }}
+  <el-row>
+    <el-col :span="3">
+      <label>月薪: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="MonthlySalary"></el-input>
+    </el-col>
+
+    <el-col :span="3">
+      <label>专项附加扣除: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="SpecialDeduction"></el-input></br>
+    </el-col>
+
+    <el-col :span="3">
+      <label>社保基数: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="InsuranceBase"></el-input></br>
+    </el-col>
+  </el-row>
+
+  <el-row>
+    <el-col :span="3">
+      <label>公积金比例: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="HPF"></el-input></br>
+    </el-col>
+
+    <el-col :span="3">
+      <label>养老保险比例: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="PensionInsurance"></el-input></br>
+    </el-col>
+
+    <el-col :span="3">
+      <label>医疗保险比例: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="HealthInsurance"></el-input></br>
+    </el-col>
+
+    <el-col :span="3">
+      <label>失业保险比例: </label>
+    </el-col>
+    <el-col :span="3">
+      <el-input type="number" style="width: 90%" v-model="JoblessInsurance"></el-input></br>
+    </el-col>
+  </el-row>
+
+  <el-row>
+    <el-col :span="3">
+      <el-button type="primary" @click="texCacu" style="width: 60%">开始计算</el-button></br>
+    </el-col>
+    <el-col :span="3">
+      <el-button type="primary" @click="clearCacu" style="width: 60%">清除</el-button></br>
+    </el-col>
+  </el-row>
+
+  <el-table :data="results.monthly" stripe>
+    <el-table-column prop="month" label="月份"></el-table-column>
+    <el-table-column prop="tex" label="税"></el-table-column>
+    <el-table-column prop="actual" label="实际收入"></el-table-column>
+    <el-table-column prop="actualPlusFund" label="加公积金收入"></el-table-column>
+  </el-table>
+
+
 </div>
-</html>
 
 <script>
+// import ElementPlus from 'element-plus'
+// import 'element-plus/dist/index.css'
+
 const HelloVueApp = {
+
   data() {
     return {
-      message: 'Hello Vue!!'
+      MonthlySalary: 20000, // 月薪
+      fundDeduct: 0, // 五险一金扣除
+      SpecialDeduction: 0, // 专项附加扣除
+      JoblessInsurance: 0.005, // 失业保险比例
+      HealthInsurance: 0.02,  // 医疗保险比例
+      PensionInsurance: 0.08, // 养老保险比例
+      HPF: 0.08, // 公积金比例
+      InsuranceBase: 6000, // 社保基数
+      texBase: 5000,
+      monthList: ["Jen", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"],
+      texRule: [
+        {
+          range: [0, 36000],
+          rate: 0.03,
+          quickDeduct: 0,
+        }, {
+          range: [36000, 144000],
+          rate: 0.1,
+          quickDeduct: 2520,
+        }, {
+          range: [144000, 300000],
+          rate: 0.2,
+          quickDeduct: 16920,
+        }, {
+          range: [300000, 420000],
+          rate: 0.25,
+          quickDeduct: 31920,
+        }, {
+          range: [420000, 660000],
+          rate: 0.3,
+          quickDeduct: 52920,
+        }, {
+          range: [660000, 960000],
+          rate: 0.35,
+          quickDeduct: 85920,
+        }, {
+          range: [960000, 10000000],
+          rate: 0.45,
+          quickDeduct: 181920,
+        },
+      ],
+      results: {
+        texSalaryTotal: 0, // 累计应纳税收入
+        texTotal: 0, // 累计纳税额
+        hpfTotal: 0, // 累计公积金
+        actualTotal: 0, // 累计到手工资
+        actualPlusFundTotal: 0, // 累计到手+公积金
+        monthly: []
+      }
     }
+  },
+  methods: {
+    clearCacu() {
+      this.results = {
+        texSalaryTotal: 0, // 累计应纳税收入
+        texTotal: 0, // 累计纳税额
+        hpfTotal: 0, // 累计公积金
+        actualTotal: 0, // 累计到手工资
+        actualPlusFundTotal: 0, // 累计到手+公积金
+        monthly: []
+      }
+    },
+    texCacu() {
+      this.clearCacu()
+      var i = 0;
+      var j = 0;
+
+      for (i = 0; i < 12; i++) {
+
+        var monthly = {
+          month: "",
+          tex: 0,
+          actual: 0,
+          actualPlusFund: 0,
+        }
+
+        this.results.texSalaryTotal += this.MonthlySalary - this.socialInsurance() - this.SpecialDeduction - this.texBase
+
+        for (j = 0; j < 7; j++) {
+          if (this.results.texSalaryTotal > this.texRule[j].range[0] && this.results.texSalaryTotal < this.texRule[j].range[1]) {
+            monthly.tex = (this.results.texSalaryTotal * this.texRule[j].rate) - this.texRule[j].quickDeduct - this.results.texTotal
+            break;
+          }
+        }
+
+        monthly.actual = this.MonthlySalary - this.socialInsurance() - monthly.tex
+        monthly.actualPlusFund = monthly.actual + (this.InsuranceBase * this.HPF * 2)
+        monthly.month = this.monthList[i];
+
+        this.results.texTotal += monthly.tex
+        this.results.hpfTotal += this.InsuranceBase * this.HPF * 2
+        this.results.actualTotal += monthly.actual
+        this.results.actualPlusFundTotal += monthly.actualPlusFund
+
+        this.results.monthly[i] = monthly;
+      }
+
+      var monthly = {
+        month: "Total",
+        tex: this.results.texTotal,
+        actual: this.results.actualTotal,
+        actualPlusFund: this.results.actualPlusFundTotal,
+      }
+      this.results.monthly[i] = monthly;
+
+    },
+    socialInsurance() {
+      this.fundDeduct = this.InsuranceBase * (this.JoblessInsurance + this.HealthInsurance + this.PensionInsurance + this.HPF)
+      return this.fundDeduct
+    },
   }
 }
+// 当月个税 = (累计收入 - 累计五金 - 累计专项扣除 - 累计减除) * 预扣税率 - 速算扣除 - 累计已缴纳税额
 
-Vue.createApp(HelloVueApp).mount('#hello-vue')
+const app = Vue.createApp(HelloVueApp)
+app.use(ElementPlus)
+app.mount('#hello-vue')
 </script>
 
 <style>
@@ -28,5 +214,8 @@ Vue.createApp(HelloVueApp).mount('#hello-vue')
   margin-bottom: 40px;
   user-select: none;
   overflow-x: auto;
+}
+.el-row {
+  margin-bottom: 20px;
 }
 </style>
