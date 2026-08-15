@@ -1,0 +1,9 @@
+{
+  "name": "salary-calculator",
+  "version": "1.0.0",
+  "description": "纯前端个税累计预扣法到手薪资计算器（逐月梯度），部署于 GitHub Pages",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
