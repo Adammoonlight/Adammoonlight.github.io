@@ -1,16 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>到手薪资计算器（累计预扣法 · 逐月）</title>
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/element-plus/dist/index.css" />
-  <script src="//cdn.jsdelivr.net/npm/vue@next"></script>
-  <script src="//cdn.jsdelivr.net/npm/element-plus"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@next"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
 </head>
 
 <body>
   <div id="app" class="demo">
     <h2>到手薪资计算器（累计预扣法 · 逐月梯度）</h2>
-    <p class="hint">个税按「累计预扣法」逐月计算：累计应纳税所得额跨档后，每月税额会跳变，因此每月到手不同。</p>
+    <p class="hint">个税按「累计预扣法」逐月计算：累计应纳税所得额跨档后，每月税额会跳变，因此每月到手不同。下方默认按 月薪20万/基数1万/公积金8% 演示，改参数后点「开始计算」即可。</p>
 
     <el-row :gutter="12">
       <el-col :span="6">
@@ -63,6 +65,8 @@
     <el-alert v-if="rows.length" style="margin-top:14px" type="success" :closable="false"
       :title="`全年合计 ｜ 税 ¥${fmt(totals.tax)} ｜ 到手 ¥${fmt(totals.takeHome)} ｜ 加公积金 ¥${fmt(totals.plusFund)}`">
     </el-alert>
+
+    <p v-if="!rows.length" class="loading">正在计算…</p>
   </div>
 
   <script src="calc.js"></script>
@@ -80,6 +84,10 @@
           rows: [],
           totals: { tax: 0, takeHome: 0, plusFund: 0 }
         }
+      },
+      mounted() {
+        // 打开即按默认参数算一次，避免页面只显示标题文字
+        this.calculate();
       },
       methods: {
         money(row, col, val) {
@@ -135,5 +143,7 @@
     .hint { color: #888; font-size: 13px; margin-bottom: 16px; }
     .el-row { margin-bottom: 4px; }
     .el-col label { display: block; font-size: 13px; margin-bottom: 4px; color: #555; }
+    .loading { color: #bbb; font-size: 13px; margin-top: 14px; }
   </style>
 </body>
+</html>
