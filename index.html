@@ -82,12 +82,13 @@
     .kpi-cell.accent-neutral > .el-card { --accent: #9aa3b2; }
 
     /* 图表 */
-    /* 图表：固定高度 340px，避免随容器宽度无限增高而“超过所在元素”；preserveAspectRatio meet 自适应缩放 */
-    .chart { width: 100%; height: 340px; display: block; overflow: visible; }
+    /* 图表：宽度自适应容器，高度由 JS 按容器宽度响应式计算（小屏更矮、桌面封顶 340px），viewBox 与像素 1:1，字号即真实像素，小屏清晰 */
+    .chart-box { width: 100%; }
+    .chart { width: 100%; display: block; overflow: visible; }
     .axis-label { fill: var(--muted); font-size: 11px; }
     .axis-title { fill: var(--muted); font-size: 11px; font-weight: 600; }
     .bar-val { fill: var(--muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .legend { font-size: 12.5px; color: var(--muted); margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .legend { font-size: 12.5px; color: var(--muted); margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .legend .chip { display: inline-flex; align-items: center; gap: 6px; background: #f3f5f9; border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; }
     .legend .chip i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
@@ -223,7 +224,8 @@
     <!-- 逐月趋势图（纯 SVG，离线） -->
     <el-card shadow="never" style="border-radius:var(--radius); margin-bottom:16px; overflow: hidden;" v-if="chart">
       <template #header><span class="card-title">逐月「当月到手」趋势</span></template>
-      <svg :viewBox="`0 0 ${chart.W} ${chart.H}`" class="chart" preserveAspectRatio="xMidYMid meet">
+      <div class="chart-box" ref="chartBox">
+        <svg :viewBox="`0 0 ${chart.W} ${chart.H}`" class="chart" :style="{ height: chart.H + 'px' }" preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="barNormal" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#7aa2fb" />
@@ -248,7 +250,7 @@
                 :fill="b.jumped ? 'url(#barJump)' : 'url(#barNormal)'" rx="4">
             <title>{{ b.month }}月 ｜ 到手 ¥{{ fmt(b.takeHome) }} ｜ 当月税 ¥{{ fmt(b.monthTax) }}</title>
           </rect>
-          <text v-for="(b, bi) in chart.bars" :key="'v' + bi"
+          <text v-for="(b, bi) in chart.bars" :key="'v' + bi" v-if="!chart.small"
                 :x="b.cx" :y="b.y - 7" text-anchor="middle" class="bar-val">{{ fmtAxis(b.takeHome) }}</text>
         </g>
         <!-- 坐标轴 + X 轴刻度 + 月份标签 -->
@@ -264,6 +266,7 @@
           <text :x="chart.padL + (chart.W - chart.padR - chart.padL) / 2" :y="chart.H - 6" text-anchor="middle" class="axis-title">月份</text>
         </g>
       </svg>
+      </div>
       <div class="legend">
         <span class="chip"><i style="background:var(--primary)"></i>普通月</span>
         <span class="chip"><i style="background:var(--jump)"></i>跳档月</span>
@@ -281,7 +284,7 @@
       </template>
       <div class="table-wrap">
         <el-table :data="rows" stripe border>
-          <el-table-column prop="month" label="月份" width="64"></el-table-column>
+          <el-table-column prop="month" label="月份" width="64" fixed="left"></el-table-column>
           <el-table-column prop="monthTax" label="当月税" align="right" header-align="right" :formatter="money"></el-table-column>
           <el-table-column prop="takeHome" label="当月到手" align="right" header-align="right" :formatter="money"></el-table-column>
           <el-table-column prop="plusFund" label="加公积金(当月)" align="right" header-align="right" :formatter="money"></el-table-column>
@@ -316,6 +319,7 @@
           totals: { tax: 0, takeHome: 0, plusFund: 0 },
           socialMonthly: 0,
           showCumulative: true,   // 表格是否显示累计列
+          chartW: 720,            // 图表容器宽度（响应式，由 ResizeObserver 更新）
           housingBoth: 0,         // 双边公积金（月缴，个人+单位）
           fiveIns: 0,             // 五险（个人月缴，不含公积金）
           retentionYear: 0        // 全年留存率 (到手+双边公积金)/税前
@@ -326,10 +330,17 @@
         chart() {
           const rows = this.rows;
           if (!rows.length) return null;
-          const W = 720, H = 300, padL = 64, padR = 18, padT = 22, padB = 58;
+          // 响应式：W 取容器实际宽度，viewBox 与像素 1:1，字号即真实像素，小屏清晰
+          const W = Math.max(280, Math.round(this.chartW || 720));
+          const small = W < 480;
+          const padL = small ? 42 : 64;
+          const padR = small ? 12 : 18;
+          const padT = small ? 18 : 20;
+          const padB = 38;
+          const H = Math.round(Math.max(small ? 200 : 220, Math.min(340, W * (small ? 0.52 : 0.42))));
           const cw = W - padL - padR, ch = H - padT - padB, n = rows.length;
-          const max = Math.max.apply(null, rows.map(r => r.takeHome));
-          const slot = cw / n, bw = slot * 0.58;
+          const max = Math.max.apply(null, rows.map(r => r.takeHome)) || 1;
+          const slot = cw / n, bw = Math.min(slot * 0.62, 48);
           const yOf = v => padT + ch * (1 - v / max);
           const baseline = padT + ch;
           const bars = rows.map((r, i) => {
@@ -345,12 +356,29 @@
             };
           });
           const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => ({ y: padT + ch * (1 - t), v: max * t }));
-          return { W, H, padL, padR, padT, padB, ch, baseline, max, bars, ticks };
+          return { W, H, padL, padR, padT, padB, ch, baseline, max, bars, ticks, small };
         }
       },
       mounted() {
         // 打开即按默认参数算一次，避免页面只显示标题文字
         this.calculate();
+        // 监听图表容器宽度，响应式重算 SVG 尺寸（小屏适配）
+        this.$nextTick(() => {
+          const box = this.$refs.chartBox;
+          if (box) this.chartW = Math.round(box.clientWidth || 720);
+          if (box && typeof ResizeObserver !== 'undefined') {
+            this._ro = new ResizeObserver(entries => {
+              for (const e of entries) {
+                const w = Math.round(e.contentRect.width);
+                if (w && Math.abs(w - this.chartW) > 1) this.chartW = w;
+              }
+            });
+            this._ro.observe(box);
+          }
+        });
+      },
+      beforeUnmount() {
+        if (this._ro) { this._ro.disconnect(); this._ro = null; }
       },
       watch: {
         // 任一参数变化即实时重算，无需每次点按钮
