@@ -16,8 +16,8 @@
       --primary-soft: #eaf1ff;
       --jump: #f4665d;
       --jump-soft: #fdecea;
-      --income: #15a05a;
-      --income-soft: #e7f6ee;
+      --income: #2b3441;
+      --income-soft: #eef0f3;
       --ink: #1d2129;
       --muted: #5b6470;
       --line: #e7eaf0;
@@ -66,13 +66,15 @@
     .kpi-cell > .el-card { flex: 1 1 auto; width: 100%; position: relative; overflow: hidden; border-radius: var(--radius) !important; transition: transform .2s ease, box-shadow .2s ease; }
     .kpi-cell > .el-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent, var(--primary)); }
     .kpi-cell > .el-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md) !important; }
-    .kpi-card { border-radius: var(--radius); padding: 4px 2px; }
-    .kpi-label { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; line-height: 1.4; }
-    .kpi-value { font-size: 23px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+    /* 三块（名称/数字/说明）统一竖向占比与间距 */
+    .kpi-card .el-card__body { display: flex; flex-direction: column; gap: 9px; padding: 13px; }
+    .kpi-label { font-size: 12.5px; color: var(--muted); line-height: 1.35; min-height: 2.8em; }
+    /* 数字：过长时统一缩减字号（不各自不同），nowrap 保证单行完整 */
+    .kpi-value { font-size: clamp(13px, 1.45vw, 15px); font-weight: 800; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
     .kpi-value.expense { color: var(--jump); }
     .kpi-value.income { color: var(--income); }
     .kpi-value.fund { color: var(--primary); }
-    .kpi-sub { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+    .kpi-sub { font-size: 11.5px; color: var(--muted); line-height: 1.35; min-height: 2.8em; }
     /* 按类别着色左侧强调条 */
     .kpi-cell.accent-expense > .el-card { --accent: var(--jump); }
     .kpi-cell.accent-income  > .el-card { --accent: var(--income); }
@@ -80,8 +82,8 @@
     .kpi-cell.accent-neutral > .el-card { --accent: #9aa3b2; }
 
     /* 图表 */
-    /* SVG 响应式：按 viewBox 比例(720/300)自适应高度，避免 height:auto 回退成默认 150px 把图压扁 */
-    .chart { width: 100%; height: auto; aspect-ratio: 720 / 300; display: block; overflow: visible; }
+    /* 图表：固定高度 340px，避免随容器宽度无限增高而“超过所在元素”；preserveAspectRatio meet 自适应缩放 */
+    .chart { width: 100%; height: 340px; display: block; overflow: visible; }
     .axis-label { fill: var(--muted); font-size: 11px; }
     .axis-title { fill: var(--muted); font-size: 11px; font-weight: 600; }
     .bar-val { fill: var(--muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -219,7 +221,7 @@
     </div>
 
     <!-- 逐月趋势图（纯 SVG，离线） -->
-    <el-card shadow="never" style="border-radius:var(--radius); margin-bottom:16px; overflow: visible;" v-if="chart">
+    <el-card shadow="never" style="border-radius:var(--radius); margin-bottom:16px; overflow: hidden;" v-if="chart">
       <template #header><span class="card-title">逐月「当月到手」趋势</span></template>
       <svg :viewBox="`0 0 ${chart.W} ${chart.H}`" class="chart" preserveAspectRatio="xMidYMid meet">
         <defs>
@@ -253,8 +255,8 @@
         <g>
           <line :x1="chart.padL" :y1="chart.padT" :x2="chart.padL" :y2="chart.baseline" stroke="#cfd4dc" stroke-width="1" />
           <line x1="0" :y1="chart.baseline" :x2="chart.W" :y2="chart.baseline" stroke="#d7dbe2" stroke-width="1.5" />
-          <text :x="14" :y="chart.padT + chart.ch / 2" text-anchor="middle" class="axis-title"
-                :transform="`rotate(-90 14 ${chart.padT + chart.ch / 2})`">当月到手(元)</text>
+          <text :x="0" :y="0" text-anchor="middle" class="axis-title"
+                :transform="`translate(26, ${chart.padT + chart.ch / 2}) rotate(-90)`">当月到手(元)</text>
           <g v-for="(b, bi) in chart.bars" :key="'x' + bi">
             <line :x1="b.cx" :y1="chart.baseline" :x2="b.cx" :y2="chart.baseline + 5" stroke="#cfd4dc" stroke-width="1" />
             <text :x="b.cx" :y="chart.baseline + 19" text-anchor="middle" class="axis-label">{{ b.month }}</text>
