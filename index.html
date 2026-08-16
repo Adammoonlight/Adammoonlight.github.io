@@ -176,46 +176,46 @@
 
     <!-- KPI 概览（Grid 响应式等宽网格） -->
     <div class="kpi-grid" v-if="rows.length">
-      <div class="kpi-cell accent-expense">
+      <div class="kpi-cell accent-income">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">全年个税</div>
-          <div class="kpi-value expense">¥{{ fmt(totals.tax) }}</div>
-          <div class="kpi-sub">月均 ¥{{ fmt(totals.tax / 12) }}</div>
+          <div class="kpi-label">净薪资（全年）</div>
+          <div class="kpi-value income">¥{{ fmt(totals.takeHome) }}</div>
+          <div class="kpi-sub">不含公积金，月均 ¥{{ fmt(totals.takeHome / 12) }}</div>
+        </el-card>
+      </div>
+      <div class="kpi-cell accent-fund">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">到手薪资（全年）</div>
+          <div class="kpi-value fund">¥{{ fmt(totals.plusFund) }}</div>
+          <div class="kpi-sub">含双边公积金累计</div>
         </el-card>
       </div>
       <div class="kpi-cell accent-income">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">全年到手（不含公积金）</div>
-          <div class="kpi-value income">¥{{ fmt(totals.takeHome) }}</div>
-          <div class="kpi-sub">月均 ¥{{ fmt(totals.takeHome / 12) }}</div>
+          <div class="kpi-label">薪资到手率</div>
+          <div class="kpi-value income">{{ pct(retentionYear) }}</div>
+          <div class="kpi-sub">到手薪资(全年) ÷ 税前(全年)</div>
+        </el-card>
+      </div>
+      <div class="kpi-cell accent-expense">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">缴纳个税（全年）</div>
+          <div class="kpi-value expense">¥{{ fmt(totals.tax) }}</div>
+          <div class="kpi-sub">月均 ¥{{ fmt(totals.tax / 12) }}</div>
         </el-card>
       </div>
       <div class="kpi-cell accent-neutral">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">五险（个人月缴）</div>
+          <div class="kpi-label">个人五险（月缴）</div>
           <div class="kpi-value">¥{{ fmt(fiveIns) }}</div>
           <div class="kpi-sub">养老+医疗+失业，按月固定</div>
         </el-card>
       </div>
       <div class="kpi-cell accent-fund">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">公积金（双边月缴）</div>
+          <div class="kpi-label">双边公积金（月缴）</div>
           <div class="kpi-value fund">¥{{ fmt(housingBoth) }}</div>
           <div class="kpi-sub">个人+单位，按月固定</div>
-        </el-card>
-      </div>
-      <div class="kpi-cell accent-fund">
-        <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">加公积金（全年）</div>
-          <div class="kpi-value fund">¥{{ fmt(totals.plusFund) }}</div>
-          <div class="kpi-sub">到手+双边公积金累计</div>
-        </el-card>
-      </div>
-      <div class="kpi-cell accent-income">
-        <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">全年留存率（到手+公积金/税前）</div>
-          <div class="kpi-value income">{{ pct(retentionYear) }}</div>
-          <div class="kpi-sub">全年 (到手+双边公积金) ÷ 税前</div>
         </el-card>
       </div>
     </div>
