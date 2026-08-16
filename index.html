@@ -3,71 +3,212 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>到手薪资计算器（累计预扣法 · 逐月）</title>
+  <title>到手薪资计算器（累计预扣法 · 逐月)</title>
   <!-- 本地引入，不依赖外网 CDN，保证离线/慢网环境下也能渲染 -->
   <link rel="stylesheet" href="vendor/element-plus/index.css" />
   <script src="vendor/vue.global.prod.js"></script>
   <script src="vendor/element-plus/index.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #5b8ff9;
+      --jump: #f56c6c;
+      --ink: #1f2329;
+      --muted: #8a9099;
+      --line: #eceef1;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 16px 56px; }
+    .page-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .page-header h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+    .page-header .sub { color: var(--muted); font-size: 13px; }
+    .card-title { font-weight: 600; font-size: 15px; }
+
+    /* 参数卡片 */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12.5px; color: #555; margin-bottom: 5px; }
+    .field .suffix { color: var(--muted); font-size: 12px; }
+
+    /* KPI 概览卡 */
+    .kpi-row { margin-bottom: 16px; }
+    .kpi-card { border-radius: 10px; }
+    .kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .kpi-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+    .kpi-value.expense { color: var(--jump); }
+    .kpi-value.income { color: #2f9e6e; }
+    .kpi-value.fund { color: var(--primary); }
+    .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* 图表 */
+    .chart { width: 100%; height: auto; display: block; }
+    .axis-label { fill: var(--muted); font-size: 11px; }
+    .legend { font-size: 12px; color: var(--muted); margin-top: 6px; display: flex; gap: 18px; flex-wrap: wrap; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+    /* 表格 */
+    .table-wrap { overflow-x: auto; }
+    .note { font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.7; }
+
+    .actions { display: flex; gap: 10px; align-items: flex-end; padding-bottom: 14px; }
+  </style>
 </head>
 
 <body>
-  <div id="app" class="demo">
-    <h2>到手薪资计算器（累计预扣法 · 逐月梯度）</h2>
-    <p class="hint">个税按「累计预扣法」逐月计算：累计应纳税所得额跨档后，每月税额会跳变，因此每月到手不同。下方默认按 月薪20万/基数1万/公积金8% 演示，改参数后点「开始计算」即可。</p>
+  <div id="app" class="wrap">
+    <div class="page-header">
+      <h1>到手薪资计算器</h1>
+      <span class="sub">累计预扣法 · 逐月梯度 · 纯前端离线可用</span>
+    </div>
 
-    <el-row :gutter="12">
-      <el-col :span="6">
-        <label>月薪: </label>
-        <el-input type="number" v-model="MonthlySalary"></el-input>
+    <!-- 参数设置 -->
+    <el-card shadow="never" style="border-radius:10px; margin-bottom:16px;">
+      <template #header><span class="card-title">参数设置</span></template>
+      <el-row :gutter="16">
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>月薪 <span class="suffix">(元)</span></label>
+            <el-input type="number" v-model="MonthlySalary"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>专项附加扣除 <span class="suffix">(元/月)</span></label>
+            <el-input type="number" v-model="SpecialDeduction"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>社保/公积金缴费基数 <span class="suffix">(元)</span></label>
+            <el-input type="number" v-model="InsuranceBase"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>公积金比例 <span class="suffix">(0.08=8%)</span></label>
+            <el-input type="number" step="0.01" v-model="HPF"></el-input>
+          </div>
+        </el-col>
+
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>养老保险比例</label>
+            <el-input type="number" step="0.01" v-model="PensionInsurance"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>医疗保险比例</label>
+            <el-input type="number" step="0.01" v-model="HealthInsurance"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>失业保险比例</label>
+            <el-input type="number" step="0.01" v-model="JoblessInsurance"></el-input>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="12" :md="6">
+          <div class="field">
+            <label>起征点 <span class="suffix">(元/月，默认5000)</span></label>
+            <el-input type="number" v-model="Threshold"></el-input>
+          </div>
+        </el-col>
+      </el-row>
+      <div class="actions">
+        <el-button type="primary" @click="calculate">重新计算</el-button>
+        <el-button @click="reset">重置默认</el-button>
+      </div>
+    </el-card>
+
+    <!-- KPI 概览 -->
+    <el-row :gutter="16" class="kpi-row" v-if="rows.length">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">全年个税</div>
+          <div class="kpi-value expense">¥{{ fmt(totals.tax) }}</div>
+          <div class="kpi-sub">月均 ¥{{ fmt(totals.tax / 12) }}</div>
+        </el-card>
       </el-col>
-      <el-col :span="6">
-        <label>专项附加扣除(月): </label>
-        <el-input type="number" v-model="SpecialDeduction"></el-input>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">全年到手（不含单位公积金）</div>
+          <div class="kpi-value income">¥{{ fmt(totals.takeHome) }}</div>
+          <div class="kpi-sub">月均 ¥{{ fmt(totals.takeHome / 12) }}</div>
+        </el-card>
       </el-col>
-      <el-col :span="6">
-        <label>社保基数: </label>
-        <el-input type="number" v-model="InsuranceBase"></el-input>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">加公积金（全年）</div>
+          <div class="kpi-value fund">¥{{ fmt(totals.plusFund) }}</div>
+          <div class="kpi-sub">含个人+单位缴存</div>
+        </el-card>
       </el-col>
-      <el-col :span="6">
-        <label>公积金比例(如0.08=8%): </label>
-        <el-input type="number" step="0.01" v-model="HPF"></el-input>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">五险一金（月缴）</div>
+          <div class="kpi-value">¥{{ fmt(socialMonthly) }}</div>
+          <div class="kpi-sub">个人部分，按月固定</div>
+        </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="12" style="margin-top:12px">
-      <el-col :span="6">
-        <label>养老保险比例: </label>
-        <el-input type="number" step="0.01" v-model="PensionInsurance"></el-input>
-      </el-col>
-      <el-col :span="6">
-        <label>医疗保险比例: </label>
-        <el-input type="number" step="0.01" v-model="HealthInsurance"></el-input>
-      </el-col>
-      <el-col :span="6">
-        <label>失业保险比例: </label>
-        <el-input type="number" step="0.01" v-model="JoblessInsurance"></el-input>
-      </el-col>
-      <el-col :span="6" style="display:flex; align-items:flex-end; gap:8px">
-        <el-button type="primary" @click="calculate">开始计算</el-button>
-        <el-button @click="clear">清除</el-button>
-      </el-col>
-    </el-row>
+    <!-- 逐月趋势图（纯 SVG，离线） -->
+    <el-card shadow="never" style="border-radius:10px; margin-bottom:16px;" v-if="chart">
+      <template #header><span class="card-title">逐月「当月到手」趋势</span></template>
+      <svg :viewBox="`0 0 ${chart.W} ${chart.H}`" class="chart" preserveAspectRatio="xMidYMid meet">
+        <!-- 网格线 + Y 轴刻度 -->
+        <g>
+          <line v-for="(t, ti) in chart.ticks" :key="'g' + ti"
+                :x1="chart.padL" :y1="t.y" :x2="chart.W - chart.padR" :y2="t.y" stroke="#eef0f3" />
+          <text v-for="(t, ti) in chart.ticks" :key="'l' + ti"
+                :x="chart.padL - 8" :y="t.y + 4" text-anchor="end" class="axis-label">{{ fmtAxis(t.v) }}</text>
+        </g>
+        <!-- 柱条 -->
+        <g>
+          <rect v-for="(b, bi) in chart.bars" :key="'b' + bi"
+                :x="b.x" :y="b.y" :width="b.w" :height="b.h"
+                :fill="b.jumped ? 'var(--jump)' : 'var(--primary)'" rx="2">
+            <title>{{ b.month }}月 ｜ 到手 ¥{{ fmt(b.takeHome) }} ｜ 当月税 ¥{{ fmt(b.monthTax) }}</title>
+          </rect>
+          <text v-for="(b, bi) in chart.bars" :key="'m' + bi"
+                :x="b.x + b.w / 2" :y="chart.H - chart.padB + 16" text-anchor="middle" class="axis-label">{{ b.month }}</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i style="background:var(--primary)"></i>普通月（当月税额平稳）</span>
+        <span><i style="background:var(--jump)"></i>跳档月（当月税较上月增加）</span>
+        <span>横轴=月份，纵轴=当月到手；柱高回落即税率跨档导致到手下降</span>
+      </div>
+    </el-card>
 
-    <el-table v-if="rows.length" :data="rows" stripe border style="margin-top:18px">
-      <el-table-column prop="month" label="月份" width="72"></el-table-column>
-      <el-table-column prop="monthTax" label="当月税" :formatter="money"></el-table-column>
-      <el-table-column prop="accumulatedTax" label="累计税" :formatter="money"></el-table-column>
-      <el-table-column prop="takeHome" label="当月到手" :formatter="money"></el-table-column>
-      <el-table-column prop="accumulatedTakeHome" label="累计到手" :formatter="money"></el-table-column>
-      <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money"></el-table-column>
-      <el-table-column prop="accumulatedPlusFund" label="加公积金(累计)" :formatter="money"></el-table-column>
-    </el-table>
+    <!-- 明细表 -->
+    <el-card shadow="never" style="border-radius:10px;" v-if="rows.length">
+      <template #header><span class="card-title">逐月明细</span></template>
+      <div class="table-wrap">
+        <el-table :data="rows" stripe border>
+          <el-table-column prop="month" label="月份" width="64" fixed></el-table-column>
+          <el-table-column prop="monthTax" label="当月税" :formatter="money"></el-table-column>
+          <el-table-column prop="accumulatedTax" label="累计税" :formatter="money"></el-table-column>
+          <el-table-column prop="takeHome" label="当月到手" :formatter="money"></el-table-column>
+          <el-table-column prop="accumulatedTakeHome" label="累计到手" :formatter="money"></el-table-column>
+          <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money"></el-table-column>
+          <el-table-column prop="accumulatedPlusFund" label="加公积金(累计)" :formatter="money"></el-table-column>
+        </el-table>
+      </div>
+    </el-card>
 
-    <el-alert v-if="rows.length" style="margin-top:14px" type="success" :closable="false"
-      :title="`全年合计 ｜ 税 ¥${fmt(totals.tax)} ｜ 到手 ¥${fmt(totals.takeHome)} ｜ 加公积金 ¥${fmt(totals.plusFund)}`">
-    </el-alert>
-
-    <p v-if="!rows.length" class="loading">正在计算…</p>
+    <p class="note">
+      说明：个税自 2019 年起按「累计预扣法」征收——累计应纳税所得额跨档后，每月预扣税额会跳增，故到手金额逐月梯度变化（图中红柱即跳档月）。
+      以上测算基于公开规则，未含年终奖、专项附加扣除明细及地方差异，仅供参考。
+    </p>
   </div>
 
   <script src="calc.js"></script>
@@ -75,20 +216,58 @@
     const App = {
       data() {
         return {
-          MonthlySalary: 200000,        // 月薪
-          SpecialDeduction: 0,           // 专项附加扣除（按月）
-          InsuranceBase: 10000,          // 社保/公积金缴费基数
-          HPF: 0.08,                     // 公积金比例
-          PensionInsurance: 0.08,        // 养老保险比例
-          HealthInsurance: 0.02,         // 医疗保险比例
-          JoblessInsurance: 0.005,       // 失业保险比例
+          MonthlySalary: 200000,
+          SpecialDeduction: 0,
+          InsuranceBase: 10000,
+          HPF: 0.08,
+          PensionInsurance: 0.08,
+          HealthInsurance: 0.02,
+          JoblessInsurance: 0.005,
+          Threshold: 5000,
           rows: [],
-          totals: { tax: 0, takeHome: 0, plusFund: 0 }
+          totals: { tax: 0, takeHome: 0, plusFund: 0 },
+          socialMonthly: 0
+        }
+      },
+      computed: {
+        // 由 rows 派生 SVG 图表数据（纯前端、无依赖）
+        chart() {
+          const rows = this.rows;
+          if (!rows.length) return null;
+          const W = 720, H = 260, padL = 64, padR = 18, padT = 18, padB = 32;
+          const cw = W - padL - padR, ch = H - padT - padB, n = rows.length;
+          const max = Math.max.apply(null, rows.map(r => r.takeHome));
+          const slot = cw / n, bw = slot * 0.6;
+          const yOf = v => padT + ch * (1 - v / max);
+          const bars = rows.map((r, i) => {
+            const x = padL + slot * i + (slot - bw) / 2;
+            const y = yOf(r.takeHome);
+            return {
+              x, y, w: bw, h: padT + ch - y,
+              month: r.month,
+              monthTax: r.monthTax,
+              takeHome: r.takeHome,
+              jumped: i > 0 && r.monthTax > rows[i - 1].monthTax
+            };
+          });
+          const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => ({ y: padT + ch * (1 - t), v: max * t }));
+          return { W, H, padL, padR, padT, padB, ch, max, bars, ticks };
         }
       },
       mounted() {
         // 打开即按默认参数算一次，避免页面只显示标题文字
         this.calculate();
+      },
+      watch: {
+        // 任一参数变化即实时重算，无需每次点按钮
+        MonthlySalary: 'calculate',
+        SpecialDeduction: 'calculate',
+        InsuranceBase: 'calculate',
+        HPF: 'calculate',
+        PensionInsurance: 'calculate',
+        HealthInsurance: 'calculate',
+        JoblessInsurance: 'calculate',
+        Threshold: 'calculate'
       },
       methods: {
         money(row, col, val) {
@@ -97,9 +276,20 @@
         fmt(n) {
           return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },
-        clear() {
-          this.rows = [];
-          this.totals = { tax: 0, takeHome: 0, plusFund: 0 };
+        fmtAxis(v) {
+          if (v >= 10000) return (v / 10000).toFixed(v % 10000 === 0 ? 0 : 1) + '万';
+          return String(Math.round(v));
+        },
+        reset() {
+          this.MonthlySalary = 200000;
+          this.SpecialDeduction = 0;
+          this.InsuranceBase = 10000;
+          this.HPF = 0.08;
+          this.PensionInsurance = 0.08;
+          this.HealthInsurance = 0.02;
+          this.JoblessInsurance = 0.005;
+          this.Threshold = 5000;
+          this.calculate();
         },
         calculate() {
           const rates = {
@@ -112,7 +302,7 @@
             monthlySalary: Number(this.MonthlySalary),
             insuranceBase: Number(this.InsuranceBase),
             specialDeduction: Number(this.SpecialDeduction),
-            threshold: 5000,
+            threshold: Number(this.Threshold) || 5000,
             rates: rates
           });
           this.rows = res.monthly.map(r => ({
@@ -125,26 +315,11 @@
             accumulatedPlusFund: r.accumulatedPlusFund
           }));
           this.totals = res.totals;
+          this.socialMonthly = res.socialMonthly;
         }
       }
     };
     Vue.createApp(App).use(ElementPlus).mount('#app');
   </script>
-
-  <style>
-    .demo {
-      font-family: sans-serif;
-      max-width: 1080px;
-      margin: 24px auto;
-      padding: 20px 30px;
-      border: 1px solid #eee;
-      border-radius: 6px;
-    }
-    .demo h2 { margin-top: 0; }
-    .hint { color: #888; font-size: 13px; margin-bottom: 16px; }
-    .el-row { margin-bottom: 4px; }
-    .el-col label { display: block; font-size: 13px; margin-bottom: 4px; color: #555; }
-    .loading { color: #bbb; font-size: 13px; margin-top: 14px; }
-  </style>
 </body>
 </html>
