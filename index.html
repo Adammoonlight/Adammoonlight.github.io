@@ -187,14 +187,6 @@
           <text v-for="(t, ti) in chart.ticks" :key="'l' + ti"
                 :x="chart.padL - 8" :y="t.y + 4" text-anchor="end" class="axis-label">{{ fmtAxis(t.v) }}</text>
         </g>
-        <!-- 坐标轴（纵轴 + 横轴） -->
-        <g>
-          <line :x1="chart.padL" :y1="chart.padT" :x2="chart.padL" :y2="chart.padT + chart.ch" stroke="#cfd4dc" stroke-width="1" />
-          <line :x1="chart.padL" :y1="chart.padT + chart.ch" :x2="chart.W - chart.padR" :y2="chart.padT + chart.ch" stroke="#cfd4dc" stroke-width="1" />
-          <text :x="chart.padL + (chart.W - chart.padR - chart.padL) / 2" :y="chart.H - 4" text-anchor="middle" class="axis-title">月份</text>
-          <text :x="14" :y="chart.padT + chart.ch / 2" text-anchor="middle" class="axis-title"
-                :transform="`rotate(-90 14 ${chart.padT + chart.ch / 2})`">当月到手(元)</text>
-        </g>
         <!-- 柱条 -->
         <g>
           <rect v-for="(b, bi) in chart.bars" :key="'b' + bi"
@@ -202,8 +194,18 @@
                 :fill="b.jumped ? 'var(--jump)' : 'var(--primary)'" rx="2">
             <title>{{ b.month }}月 ｜ 到手 ¥{{ fmt(b.takeHome) }} ｜ 当月税 ¥{{ fmt(b.monthTax) }}</title>
           </rect>
-          <text v-for="(b, bi) in chart.bars" :key="'m' + bi"
-                :x="b.x + b.w / 2" :y="chart.H - chart.padB + 16" text-anchor="middle" class="axis-label">{{ b.month }}</text>
+        </g>
+        <!-- 坐标轴 + X 轴刻度 + 月份标签 -->
+        <g>
+          <line :x1="chart.padL" :y1="chart.padT" :x2="chart.padL" :y2="chart.baseline" stroke="#cfd4dc" stroke-width="1" />
+          <line :x1="chart.padL" :y1="chart.baseline" :x2="chart.W - chart.padR" :y2="chart.baseline" stroke="#cfd4dc" stroke-width="1" />
+          <text :x="14" :y="chart.padT + chart.ch / 2" text-anchor="middle" class="axis-title"
+                :transform="`rotate(-90 14 ${chart.padT + chart.ch / 2})`">当月到手(元)</text>
+          <g v-for="(b, bi) in chart.bars" :key="'x' + bi">
+            <line :x1="b.cx" :y1="chart.baseline" :x2="b.cx" :y2="chart.baseline + 5" stroke="#cfd4dc" stroke-width="1" />
+            <text :x="b.cx" :y="chart.baseline + 19" text-anchor="middle" class="axis-label">{{ b.month }}</text>
+          </g>
+          <text :x="chart.padL + (chart.W - chart.padR - chart.padL) / 2" :y="chart.H - 6" text-anchor="middle" class="axis-title">月份</text>
         </g>
       </svg>
       <div class="legend">
@@ -226,7 +228,6 @@
           <el-table-column prop="month" label="月份" width="64" fixed></el-table-column>
           <el-table-column prop="monthTax" label="当月税" :formatter="money"></el-table-column>
           <el-table-column prop="takeHome" label="当月到手" :formatter="money"></el-table-column>
-          <el-table-column prop="housingBoth" label="双边公积金(月)" :formatter="money" fixed width="132"></el-table-column>
           <el-table-column prop="retention" label="到手+公积金/税前" :formatter="percent"></el-table-column>
           <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money" v-if="showCumulative"></el-table-column>
           <el-table-column prop="accumulatedTax" label="累计税" :formatter="money" v-if="showCumulative"></el-table-column>
@@ -269,16 +270,18 @@
         chart() {
           const rows = this.rows;
           if (!rows.length) return null;
-          const W = 720, H = 260, padL = 64, padR = 18, padT = 18, padB = 32;
+          const W = 720, H = 280, padL = 64, padR = 18, padT = 18, padB = 46;
           const cw = W - padL - padR, ch = H - padT - padB, n = rows.length;
           const max = Math.max.apply(null, rows.map(r => r.takeHome));
           const slot = cw / n, bw = slot * 0.6;
           const yOf = v => padT + ch * (1 - v / max);
+          const baseline = padT + ch;
           const bars = rows.map((r, i) => {
             const x = padL + slot * i + (slot - bw) / 2;
             const y = yOf(r.takeHome);
+            const cx = x + bw / 2;
             return {
-              x, y, w: bw, h: padT + ch - y,
+              x, y, w: bw, h: padT + ch - y, cx,
               month: r.month,
               monthTax: r.monthTax,
               takeHome: r.takeHome,
@@ -286,7 +289,7 @@
             };
           });
           const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => ({ y: padT + ch * (1 - t), v: max * t }));
-          return { W, H, padL, padR, padT, padB, ch, max, bars, ticks };
+          return { W, H, padL, padR, padT, padB, ch, baseline, max, bars, ticks };
         }
       },
       mounted() {
@@ -369,7 +372,6 @@
             accumulatedTakeHome: r.accumulatedTakeHome,
             plusFund: r.plusFund,
             accumulatedPlusFund: r.accumulatedPlusFund,
-            housingBoth: housingBoth,
             // (当月到手 + 双边公积金) / 税前月薪
             retention: salary ? this.round2(r.plusFund / salary * 10000) / 10000 : 0
           }));
