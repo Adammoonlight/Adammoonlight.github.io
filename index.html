@@ -80,7 +80,8 @@
     .kpi-cell.accent-neutral > .el-card { --accent: #9aa3b2; }
 
     /* 图表 */
-    .chart { width: 100%; height: auto; display: block; overflow: visible; }
+    /* SVG 响应式：按 viewBox 比例(720/300)自适应高度，避免 height:auto 回退成默认 150px 把图压扁 */
+    .chart { width: 100%; height: auto; aspect-ratio: 720 / 300; display: block; overflow: visible; }
     .axis-label { fill: var(--muted); font-size: 11px; }
     .axis-title { fill: var(--muted); font-size: 11px; font-weight: 600; }
     .bar-val { fill: var(--muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
