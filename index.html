@@ -58,6 +58,7 @@
     .note { font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.7; }
 
     .actions { display: flex; gap: 10px; align-items: flex-end; padding-bottom: 14px; }
+    .table-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   </style>
 </head>
 
@@ -139,23 +140,37 @@
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">全年到手（不含单位公积金）</div>
+          <div class="kpi-label">全年到手（不含公积金）</div>
           <div class="kpi-value income">¥{{ fmt(totals.takeHome) }}</div>
           <div class="kpi-sub">月均 ¥{{ fmt(totals.takeHome / 12) }}</div>
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">加公积金（全年）</div>
-          <div class="kpi-value fund">¥{{ fmt(totals.plusFund) }}</div>
-          <div class="kpi-sub">含个人+单位缴存</div>
+          <div class="kpi-label">五险（个人月缴）</div>
+          <div class="kpi-value">¥{{ fmt(fiveIns) }}</div>
+          <div class="kpi-sub">养老+医疗+失业，按月固定</div>
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="never" class="kpi-card">
-          <div class="kpi-label">五险一金（月缴）</div>
-          <div class="kpi-value">¥{{ fmt(socialMonthly) }}</div>
-          <div class="kpi-sub">个人部分，按月固定</div>
+          <div class="kpi-label">公积金（双边月缴）</div>
+          <div class="kpi-value fund">¥{{ fmt(housingBoth) }}</div>
+          <div class="kpi-sub">个人+单位，按月固定</div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">加公积金（全年）</div>
+          <div class="kpi-value fund">¥{{ fmt(totals.plusFund) }}</div>
+          <div class="kpi-sub">到手+双边公积金累计</div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="kpi-card">
+          <div class="kpi-label">全年留存率（到手+公积金/税前）</div>
+          <div class="kpi-value income">{{ pct(retentionYear) }}</div>
+          <div class="kpi-sub">全年 (到手+双边公积金) ÷ 税前</div>
         </el-card>
       </el-col>
     </el-row>
@@ -191,16 +206,23 @@
 
     <!-- 明细表 -->
     <el-card shadow="never" style="border-radius:10px;" v-if="rows.length">
-      <template #header><span class="card-title">逐月明细</span></template>
+      <template #header>
+        <div class="table-head">
+          <span class="card-title">逐月明细</span>
+          <el-switch v-model="showCumulative" active-text="显示累计列" inactive-text="仅当月"></el-switch>
+        </div>
+      </template>
       <div class="table-wrap">
         <el-table :data="rows" stripe border>
           <el-table-column prop="month" label="月份" width="64" fixed></el-table-column>
           <el-table-column prop="monthTax" label="当月税" :formatter="money"></el-table-column>
-          <el-table-column prop="accumulatedTax" label="累计税" :formatter="money"></el-table-column>
           <el-table-column prop="takeHome" label="当月到手" :formatter="money"></el-table-column>
-          <el-table-column prop="accumulatedTakeHome" label="累计到手" :formatter="money"></el-table-column>
-          <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money"></el-table-column>
-          <el-table-column prop="accumulatedPlusFund" label="加公积金(累计)" :formatter="money"></el-table-column>
+          <el-table-column prop="housingBoth" label="双边公积金(月)" :formatter="money" fixed></el-table-column>
+          <el-table-column prop="retention" label="到手+公积金/税前" :formatter="percent"></el-table-column>
+          <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money" v-if="showCumulative"></el-table-column>
+          <el-table-column prop="accumulatedTax" label="累计税" :formatter="money" v-if="showCumulative"></el-table-column>
+          <el-table-column prop="accumulatedTakeHome" label="累计到手" :formatter="money" v-if="showCumulative"></el-table-column>
+          <el-table-column prop="accumulatedPlusFund" label="加公积金(累计)" :formatter="money" v-if="showCumulative"></el-table-column>
         </el-table>
       </div>
     </el-card>
@@ -226,7 +248,11 @@
           Threshold: 5000,
           rows: [],
           totals: { tax: 0, takeHome: 0, plusFund: 0 },
-          socialMonthly: 0
+          socialMonthly: 0,
+          showCumulative: true,   // 表格是否显示累计列
+          housingBoth: 0,         // 双边公积金（月缴，个人+单位）
+          fiveIns: 0,             // 五险（个人月缴，不含公积金）
+          retentionYear: 0        // 全年留存率 (到手+双边公积金)/税前
         }
       },
       computed: {
@@ -273,8 +299,20 @@
         money(row, col, val) {
           return (val == null) ? '' : '¥' + Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },
+        // 小数比例 → 百分比文本（如 0.8234 → "82.34%"）
+        percent(row, col, val) {
+          return (val == null) ? '' : (Number(val) * 100).toFixed(2) + '%';
+        },
+        // 数值比例 → 百分比文本
+        pct(n) {
+          return (Number(n || 0) * 100).toFixed(2) + '%';
+        },
         fmt(n) {
           return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        round2(n) {
+          if (!isFinite(n)) return 0;
+          return Math.round((n + Number.EPSILON) * 100) / 100;
         },
         fmtAxis(v) {
           if (v >= 10000) return (v / 10000).toFixed(v % 10000 === 0 ? 0 : 1) + '万';
@@ -305,6 +343,15 @@
             threshold: Number(this.Threshold) || 5000,
             rates: rates
           });
+
+          const base = Number(this.InsuranceBase);
+          const hpf = Number(this.HPF);
+          const salary = Number(this.MonthlySalary) || 0;
+          // 双边公积金（个人+单位，每月固定）= 基数 × 比例 × 2
+          const housingBoth = this.round2(base * hpf * 2);
+          // 五险（个人月缴，不含公积金）= 基数 × (养老+医疗+失业)
+          const fiveIns = this.round2(base * (Number(this.PensionInsurance) + Number(this.HealthInsurance) + Number(this.JoblessInsurance)));
+
           this.rows = res.monthly.map(r => ({
             month: r.month,
             monthTax: r.monthTax,
@@ -312,10 +359,17 @@
             takeHome: r.takeHome,
             accumulatedTakeHome: r.accumulatedTakeHome,
             plusFund: r.plusFund,
-            accumulatedPlusFund: r.accumulatedPlusFund
+            accumulatedPlusFund: r.accumulatedPlusFund,
+            housingBoth: housingBoth,
+            // (当月到手 + 双边公积金) / 税前月薪
+            retention: salary ? this.round2(r.plusFund / salary * 10000) / 10000 : 0
           }));
           this.totals = res.totals;
           this.socialMonthly = res.socialMonthly;
+          this.housingBoth = housingBoth;
+          this.fiveIns = fiveIns;
+          // 全年留存率 = (全年到手 + 12×双边公积金) ÷ (12×税前月薪)
+          this.retentionYear = salary ? this.round2((res.totals.takeHome + 12 * housingBoth) / (12 * salary) * 10000) / 10000 : 0;
         }
       }
     };
