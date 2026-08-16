@@ -50,6 +50,7 @@
     /* 图表 */
     .chart { width: 100%; height: auto; display: block; }
     .axis-label { fill: var(--muted); font-size: 11px; }
+    .axis-title { fill: var(--muted); font-size: 11px; }
     .legend { font-size: 12px; color: var(--muted); margin-top: 6px; display: flex; gap: 18px; flex-wrap: wrap; }
     .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 
@@ -186,6 +187,14 @@
           <text v-for="(t, ti) in chart.ticks" :key="'l' + ti"
                 :x="chart.padL - 8" :y="t.y + 4" text-anchor="end" class="axis-label">{{ fmtAxis(t.v) }}</text>
         </g>
+        <!-- 坐标轴（纵轴 + 横轴） -->
+        <g>
+          <line :x1="chart.padL" :y1="chart.padT" :x2="chart.padL" :y2="chart.padT + chart.ch" stroke="#cfd4dc" stroke-width="1" />
+          <line :x1="chart.padL" :y1="chart.padT + chart.ch" :x2="chart.W - chart.padR" :y2="chart.padT + chart.ch" stroke="#cfd4dc" stroke-width="1" />
+          <text :x="chart.padL + (chart.W - chart.padR - chart.padL) / 2" :y="chart.H - 4" text-anchor="middle" class="axis-title">月份</text>
+          <text :x="14" :y="chart.padT + chart.ch / 2" text-anchor="middle" class="axis-title"
+                :transform="`rotate(-90 14 ${chart.padT + chart.ch / 2})`">当月到手(元)</text>
+        </g>
         <!-- 柱条 -->
         <g>
           <rect v-for="(b, bi) in chart.bars" :key="'b' + bi"
@@ -217,7 +226,7 @@
           <el-table-column prop="month" label="月份" width="64" fixed></el-table-column>
           <el-table-column prop="monthTax" label="当月税" :formatter="money"></el-table-column>
           <el-table-column prop="takeHome" label="当月到手" :formatter="money"></el-table-column>
-          <el-table-column prop="housingBoth" label="双边公积金(月)" :formatter="money" fixed></el-table-column>
+          <el-table-column prop="housingBoth" label="双边公积金(月)" :formatter="money" fixed width="132"></el-table-column>
           <el-table-column prop="retention" label="到手+公积金/税前" :formatter="percent"></el-table-column>
           <el-table-column prop="plusFund" label="加公积金(当月)" :formatter="money" v-if="showCumulative"></el-table-column>
           <el-table-column prop="accumulatedTax" label="累计税" :formatter="money" v-if="showCumulative"></el-table-column>
